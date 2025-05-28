@@ -45,8 +45,6 @@ public class Core extends JavaPlugin {
 	    Player player = (Player) event.getEntity();
 	    Entity mount = event.getMount();
 
-
-
 	    if (isPlayerAllowedToMount(player, mount) && event.isCancelled()) {
 	        event.setCancelled(false);
 	    }
@@ -65,7 +63,7 @@ public class Core extends JavaPlugin {
 	    String raw = container.get(key, PersistentDataType.STRING);
 
 	    long now = System.currentTimeMillis();
-	    final long THREE_HOURS = 3 * 60 * 60 * 1000;
+	    final long HALF_HOUR = 30 * 60 * 1000;
 
 	    for (String entry : raw.split(",")) {
 	        String[] parts = entry.split(":");
@@ -73,7 +71,7 @@ public class Core extends JavaPlugin {
 
 	        if (parts[0].equals(uuid)) {
 	            long time = Long.parseLong(parts[1]);
-	            return (now - time <= THREE_HOURS);
+	            return (now - time <= HALF_HOUR);
 	        }
 	    }
 	    return false;
