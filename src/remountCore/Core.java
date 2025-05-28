@@ -13,6 +13,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.Plugin;
@@ -25,48 +26,58 @@ public class Core extends JavaPlugin {
 		getServer().getPluginManager().registerEvents(new MountEvent(), this);
 		plugin = this;
 	}
-
+	
 	public class MountEvent implements Listener {
+	@EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+	public void onPlayerInteractEntity(PlayerInteractEntityEvent event) {
+	    Entity mount = event.getRightClicked();
+	    Player player = event.getPlayer();
 
-		@EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
-		public void onEntityMount(EntityMountEvent event) {
-		    if (!(event.getEntity() instanceof Player)) return;
+	    if (isPlayerAllowedToMount(player, mount)) {
+	        event.setCancelled(false);
+	    }
+	}
 
-		    Player player = (Player) event.getEntity();
-		    Entity mount = event.getMount();
+	@EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+	public void onEntityMount(EntityMountEvent event) {
+	    if (!(event.getEntity() instanceof Player)) return;
+
+	    Player player = (Player) event.getEntity();
+	    Entity mount = event.getMount();
+
+
+
+	    if (isPlayerAllowedToMount(player, mount) && event.isCancelled()) {
+	        event.setCancelled(false);
+	    }
 
 		    if (!event.isCancelled()) {
 		        savePlayerToMountList(player, mount);
-		        return;
 		    }
+	}
 
-		    NamespacedKey key = new NamespacedKey(Core.plugin, "last_mounts");
-		    PersistentDataContainer container = mount.getPersistentDataContainer();
-		    if (!container.has(key, PersistentDataType.STRING)) return;
+	private boolean isPlayerAllowedToMount(Player player, Entity mount) {
+	    NamespacedKey key = new NamespacedKey(Core.plugin, "last_mounts");
+	    PersistentDataContainer container = mount.getPersistentDataContainer();
+	    if (!container.has(key, PersistentDataType.STRING)) return false;
 
-		    String uuid = player.getUniqueId().toString();
-		    String raw = container.get(key, PersistentDataType.STRING);
+	    String uuid = player.getUniqueId().toString();
+	    String raw = container.get(key, PersistentDataType.STRING);
 
-		    long now = System.currentTimeMillis();
-		    final long THREE_HOURS = 3 * 60 * 60 * 1000;
+	    long now = System.currentTimeMillis();
+	    final long THREE_HOURS = 3 * 60 * 60 * 1000;
 
-		    
-		    for (String entry : raw.split(",")) {
-		        String[] parts = entry.split(":");
-		        if (parts.length != 2) continue;
+	    for (String entry : raw.split(",")) {
+	        String[] parts = entry.split(":");
+	        if (parts.length != 2) continue;
 
-		        if (parts[0].equals(uuid)) {
-		            long time = Long.parseLong(parts[1]);
-		            if (now - time <= THREE_HOURS) {
-		                event.setCancelled(false);
-		                player.sendMessage("You're allowed to mount again (within 3 hours).");
-		            } else {
-		                player.sendMessage("Your previous mount was over 3 hours ago.");
-		            }
-		            break;
-		        }
-		    }
-		}
+	        if (parts[0].equals(uuid)) {
+	            long time = Long.parseLong(parts[1]);
+	            return (now - time <= THREE_HOURS);
+	        }
+	    }
+	    return false;
+	}
 
 		
 	    //Store the last 5 players mounting it to the entitys state container 
