@@ -1,0 +1,5 @@
+bin/remountCore/Core.class
+bin/remountCore/Core$MountEvent.class
+.settings/org.eclipse.jdt.core.prefs
+.project
+.classpath

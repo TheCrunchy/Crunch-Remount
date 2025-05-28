@@ -1,0 +1,4 @@
+name: CrunchRemount
+main: remountCore.Core
+version: 1.0
+api-version: 1.20
