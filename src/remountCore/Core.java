@@ -51,9 +51,9 @@ public class Core extends JavaPlugin {
 	        event.setCancelled(false);
 	    }
 
-		    if (!event.isCancelled()) {
-		        savePlayerToMountList(player, mount);
-		    }
+		 if (!event.isCancelled()) {
+		     savePlayerToMountList(player, mount);
+		 }
 	}
 
 	private boolean isPlayerAllowedToMount(Player player, Entity mount) {
