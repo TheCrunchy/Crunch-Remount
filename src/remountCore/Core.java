@@ -1,42 +1,30 @@
 package remountCore;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
+import java.text.DecimalFormat;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.UUID;
+import java.util.logging.Level;
 
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
+import org.bukkit.attribute.Attribute;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.Horse;
+import org.bukkit.entity.LivingEntity;
+import org.bukkit.entity.Mule;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.event.inventory.InventoryCloseEvent;
-import org.bukkit.event.inventory.InventoryDragEvent;
-import org.bukkit.event.inventory.InventoryType.SlotType;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
-import org.bukkit.inventory.Inventory;
-import org.bukkit.inventory.InventoryView;
+import org.bukkit.event.vehicle.VehicleEnterEvent;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.spigotmc.event.entity.EntityMountEvent;
-
-import de.tr7zw.nbtapi.NBT;
-import de.tr7zw.nbtapi.NBTCompound;
-import de.tr7zw.nbtapi.NBTItem;
-import net.minecraft.nbt.NBTTagCompound;
 
 public class Core extends JavaPlugin {
 	public static Plugin plugin;
@@ -47,99 +35,53 @@ public class Core extends JavaPlugin {
 	}
 	
 	
-	
+
 	public class MountEvent implements Listener {
 		
-		private final Map<UUID, ItemStack> playerItemCache = new HashMap<>();
-
-		@EventHandler
-		public void onInventoryClick(InventoryClickEvent event) {
-		    if (!(event.getWhoClicked() instanceof Player)) return;
-		  //  getLogger().info("Clicked");
-		    Player player = (Player) event.getWhoClicked();
-		    ItemStack clicked = event.getCurrentItem();
-
-		    if (clicked == null || clicked.getType() == Material.AIR) return;
-
-		    // Check if the item has NBT data using NBT API
-		    NBTItem nbtClicked = new NBTItem(clicked);
-		    if (nbtClicked.getKeys().isEmpty()) {
-		        // No NBT data, don't cache
-		        playerItemCache.remove(player.getUniqueId());
-		        return;
-		    }
-
-		    // Cache the full ItemStack (clone to avoid modifying original)
-		    playerItemCache.put(player.getUniqueId(), clicked.clone());
-		}
-		
-		@EventHandler
-		public void onInventoryDrag(InventoryDragEvent event) {
-		    if (!(event.getWhoClicked() instanceof Player)) return;
-		    Player player = (Player) event.getWhoClicked();
-
-		    ItemStack cachedItem = playerItemCache.get(player.getUniqueId());
-		    if (cachedItem == null) return;
-
-		    NBTItem cachedNBT = new NBTItem(cachedItem);
-		    if (cachedNBT.getKeys().isEmpty()) return;
-
-		    InventoryView view = player.getOpenInventory();
-
-		    for (Map.Entry<Integer, ItemStack> entry : event.getNewItems().entrySet()) {
-		        int rawSlot = entry.getKey();
-		        ItemStack draggedItem = entry.getValue();
-
-		        if (draggedItem == null || draggedItem.getType() == Material.AIR) continue;
-		        if (draggedItem.getType() != cachedItem.getType()) continue;
-
-		        ItemStack replaced = cachedItem.clone();
-		        replaced.setAmount(draggedItem.getAmount());
-
-		        Inventory inventory = view.getInventory(rawSlot);
-		        int localSlot = view.convertSlot(rawSlot);
-
-		        if (localSlot < 0 || localSlot >= inventory.getSize()) continue;
-
-		        Core.plugin.getServer().getScheduler().runTaskLater(Core.plugin, () -> {
-		            inventory.setItem(localSlot, replaced);
-		//            getLogger().info("Reapplied cached NBT item to slot " + localSlot + " in inventory of type " +
-		  //              inventory.getType().name() + " with amount " + replaced.getAmount());
-		        }, 1L);
-		    }
-		}
-
-		@EventHandler
-		public void onInventoryClose(InventoryCloseEvent event) {
-			playerItemCache.remove(event.getPlayer().getUniqueId());
-		}
 
 	@EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
 	public void onPlayerInteractEntity(PlayerInteractEntityEvent event) {
-	    Entity mount = event.getRightClicked();
+	
+		Entity mount = event.getRightClicked();
 	    Player player = event.getPlayer();
 
 	    if (isPlayerAllowedToMount(player, mount)) {
 	        event.setCancelled(false);
+		
 	    }
 	}
 
 	@EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
 	public void onEntityMount(EntityMountEvent event) {
+	
 	    if (!(event.getEntity() instanceof Player)) return;
 
 	    Player player = (Player) event.getEntity();
 	    Entity mount = event.getMount();
 
-	    if (isPlayerAllowedToMount(player, mount) && event.isCancelled()) {
+	    if (isPlayerAllowedToMount(player, mount)) {
 	        event.setCancelled(false);
+	    	
 	    }
 
 		 if (!event.isCancelled()) {
 		     savePlayerToMountList(player, mount);
 		 }
 	}
+	
+	@EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+	public void onVehicleEnter(VehicleEnterEvent event) {
 
+	    if (!(event.getEntered() instanceof Player)) return;
+	    Player player = (Player) event.getEntered();
+	    Entity vehicle = event.getVehicle();
+        
+	    if (isPlayerAllowedToMount(player, vehicle)) {
+	        event.setCancelled(false);
+	
+	    }
+	}
+	
 	private boolean isPlayerAllowedToMount(Player player, Entity mount) {
 	    NamespacedKey key = new NamespacedKey(Core.plugin, "last_mounts");
 	    PersistentDataContainer container = mount.getPersistentDataContainer();
